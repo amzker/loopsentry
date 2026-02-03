@@ -23,9 +23,13 @@ dev = [
     "aiohttp",
 ]
 
+[project.urls]
+Homepage = "https://github.com/amzker/loopsentry"
+Repository = "https://github.com/amzker/loopsentry"
+Issues = "https://github.com/amzker/loopsentry/issues"
+
 [tool.uv.workspace]
 members = [
-    ".",
     ".",
 ]
 
