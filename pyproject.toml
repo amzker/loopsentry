@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "loopsentry"
+version = "0.1.0"
+description = "asyncio Eventloop Blockers Detector/Analyzer."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "amzker", email = "amzker@proton.me" }]
+dependencies = [
+    "psutil>=6.0.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+loopsentry = "loopsentry.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "requests",
+    "aiohttp",
+]
+
+[tool.uv.workspace]
+members = [
+    ".",
+    ".",
+]
+
+[tool.uv.sources]
+loopsentry = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "loopsentry",
+]
