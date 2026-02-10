@@ -14,9 +14,8 @@ def main():
     subparsers.add_parser("clean", help="Clear logs")
     
     an_parser = subparsers.add_parser("analyze", help="Analyze logs")
-    an_parser.add_argument("-d", "--dir")
-    an_parser.add_argument("-f", "--file")
-    an_parser.add_argument("--html", action="store_true")
+    an_parser.add_argument("-d", "--dir", help="Directory to scan")
+    an_parser.add_argument("-f", "--file", help="File to scan")
 
     args = parser.parse_args()
 
@@ -31,15 +30,16 @@ def main():
         target = args.file if args.file else args.dir
         if not target:
             dirs = sorted(Path("sentry_logs").glob("*"))
-            if dirs: target = dirs[-1]
-            else: 
+            if dirs:
+                target = dirs[-1]
+                console.print(f"[dim]Auto-selecting latest log: {target}[/dim]")
+            else:
                 console.print("[red]No logs found.[/red]")
                 return
 
         analyzer = Analyzer(target)
         analyzer.run()
-        if args.html: analyzer.render_html()
-        else: analyzer.interactive_tui()
+        analyzer.interactive_tui()
     
     else:
         parser.print_help()
