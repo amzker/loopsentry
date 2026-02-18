@@ -37,7 +37,7 @@ def main():
                 console.print("[red]No logs found.[/red]")
                 return
 
-        analyzer = Analyzer(target)
+        analyzer = Analyzer(target.)
         analyzer.run()
         analyzer.interactive_tui()
     
