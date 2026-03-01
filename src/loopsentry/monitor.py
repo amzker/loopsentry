@@ -4,6 +4,7 @@ import threading
 import sys
 import traceback
 import json
+import gc
 import os
 import signal
 from datetime import datetime
@@ -23,10 +24,12 @@ class LoopSentry:
         self, 
         base_dir="sentry_logs", 
         threshold=0.1, 
+        async_threshold=None,
         capture_args=False,
         detect_async_bottlenecks=False
     ):
         self.threshold = threshold
+        self.async_threshold = async_threshold if async_threshold is not None else threshold
         self.capture_args = capture_args
         self.detect_async_bottlenecks = detect_async_bottlenecks
         
@@ -77,7 +80,7 @@ class LoopSentry:
         self.thread = threading.Thread(target=self._watchdog, daemon=True, name="LoopSentry-Watchdog")
         self.thread.start()
         
-        console.print(f"[green]✔ LoopSentry Active.[/green] [dim]PID: {self.pid} | Capture Args: {self.capture_args}[/dim]")
+        console.print(f"[green]✔ LoopSentry Active.[/green] [dim]PID: {self.pid} | Threshold: {self.threshold}s | Async Threshold: {self.async_threshold}s | Capture Args: {self.capture_args}[/dim]")
 
     def _signal_handler(self, signum, frame):
         self.running = False
@@ -94,6 +97,22 @@ class LoopSentry:
         except:
             return "<unprintable>"
 
+    def _capture_creation_traceback(self):
+        """Capture a cleaned-up traceback at task creation time."""
+        try:
+            raw_stack = traceback.format_stack()
+            # Filter out LoopSentry internals and asyncio internals
+            cleaned = []
+            for frame in raw_stack:
+                if "loopsentry/monitor.py" in frame:
+                    continue
+                if "asyncio/" in frame and "task_factory" not in frame:
+                    continue
+                cleaned.append(frame)
+            return cleaned if cleaned else raw_stack[-3:]
+        except:
+            return []
+
     def _sentry_task_factory(self, loop, coro, context=None):
         if self._original_factory:
             task = self._original_factory(loop, coro, context)
@@ -102,11 +121,13 @@ class LoopSentry:
 
         task._sentry_start = time.time()
         
-        # --- Capture Args at Start (Before frame is destroyed) ---
+        # Capture traceback at creation time (before frame is destroyed)
+        task._sentry_creation_stack = self._capture_creation_traceback()
+        
+        # Capture Args at Start (Before frame is destroyed)
         task._sentry_locals = {}
         if self.capture_args:
             try:
-                # coro.cr_frame.f_locals contains arguments passed to the async func
                 if hasattr(coro, 'cr_frame') and coro.cr_frame:
                     raw_locals = coro.cr_frame.f_locals
                     task._sentry_locals = {k: self._safe_repr(v) for k, v in raw_locals.items() if not k.startswith('_')}
@@ -115,16 +136,31 @@ class LoopSentry:
 
         def _on_done(t):
             duration = time.time() - t._sentry_start
-            if duration > self.threshold:
+            if duration > self.async_threshold:
                 coro_obj = t.get_coro()
                 coro_name = getattr(coro_obj, '__name__', str(coro_obj))
                 
-                # We write the log with the captured locals
+                # Capture exception info if task failed
+                exception_info = None
+                try:
+                    exc = t.exception()
+                    if exc:
+                        exception_info = {
+                            "type": type(exc).__name__,
+                            "message": str(exc),
+                            "traceback": traceback.format_exception(type(exc), exc, exc.__traceback__)
+                        }
+                except (asyncio.CancelledError, asyncio.InvalidStateError):
+                    pass
+
                 self._write_event("async_bottleneck", {
                     "task_name": t.get_name(),
                     "coro": coro_name,
                     "info": "Slow Async Task",
-                    "locals": [{"func": coro_name, "vars": t._sentry_locals}] if t._sentry_locals else []
+                    "stack": getattr(t, '_sentry_creation_stack', []),
+                    "locals": [{"func": coro_name, "vars": t._sentry_locals}] if t._sentry_locals else [],
+                    "exception": exception_info,
+                    "sys": self._get_sys_metrics(),
                 }, duration=duration)
 
         task.add_done_callback(_on_done)
@@ -169,13 +205,30 @@ class LoopSentry:
                     console.print(f"[green]✔ Recovered.[/green]")
                     self._last_stack_signature = None
 
+    def _get_sys_metrics(self):
+        """Get system metrics (CPU, memory, GC) as a dict."""
+        metrics = {
+            "cpu_percent": 0.0,
+            "memory_mb": 0.0,
+            "thread_count": threading.active_count(),
+            "gc_counts": list(gc.get_count()),
+        }
+        if self.process:
+            try:
+                with self.process.oneshot():
+                    metrics["cpu_percent"] = self.process.cpu_percent()
+                    metrics["memory_mb"] = round(self.process.memory_info().rss / 1024 / 1024, 2)
+            except Exception:
+                pass
+        return metrics
+
     def _capture_state(self):
         data = {
             "timestamp": datetime.now().isoformat(),
             "stack": [],
             "locals": [],
             "trigger": "Unknown",
-            "sys": { "cpu_percent": 0.0, "memory_mb": 0.0, "thread_count": threading.active_count() }
+            "sys": self._get_sys_metrics(),
         }
         try:
             main_id = threading.main_thread().ident
@@ -208,13 +261,6 @@ class LoopSentry:
         except Exception:
             data["stack"] = ["Error capturing stack"]
 
-        if self.process:
-            try:
-                with self.process.oneshot():
-                    data["sys"]["cpu_percent"] = self.process.cpu_percent()
-                    data["sys"]["memory_mb"] = self.process.memory_info().rss / 1024 / 1024
-            except Exception:
-                pass     
         return data
 
     def _write_event(self, event_type, data, duration=0.0):

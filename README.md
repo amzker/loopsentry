@@ -1,44 +1,61 @@
 # LoopSentry
 
-### **Asyncio Event Loop Blockers Detector & Analyzer**
-- utility for detecting blocking calls in asyncio event loops
+### Asyncio Event Loop Blocker Detector & Analyzer
+
+Detect blocking calls, slow async tasks, and performance bottlenecks in your asyncio applications. Captures stack traces, function arguments, CPU/memory/GC metrics. Generates standalone HTML reports and CSV exports.
+
+### HTML Report 
+![Checkout Full HTML Report](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/report.html)
+![HTML Report](https://raw.githubusercontent.com/amzker/loopsentry/master/images/html_report.png)
+
 
 ![LoopSentry Interface](https://raw.githubusercontent.com/amzker/loopsentry/master/images/frontview.png)
 
-### **Installation**
-
-```bash
-uv add loopsentry
-```
-pip way
+## Installation
 
 ```bash
 pip install loopsentry
 ```
+OR
+```bash
+uv add loopsentry
+```
 
-### **Usage**
-1. Basic Usage
+## Quick Start
 
 ```python
 import asyncio
 from loopsentry import LoopSentry
 
 async def main():
-    # start monitoring (default threshold: 0.1s) ie: if blocks is >= 0.1 , it is logged
-    sentry = LoopSentry(threshold=0.1,
-                        capture_args=False, # this is basically do you want to capture arguments of functions at the time
-                        detect_async_bottlenecks=False) # other than blocking it also detects slow asyncio tasks which are going on. helps to find bottlenecks
+    sentry = LoopSentry(threshold=0.1)
     sentry.start()
+    # ... your application
 
-    print("Running...")
-    ... # rest of your application
-
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
-2. Use inside Uvicorn/gunicorn workers in fastapi
-- you need to put it inside a `lifespan` context manager , so if you use multiple workers eachh gets their own LoopSentry instance
+## Configuration
+
+```python
+sentry = LoopSentry(
+    base_dir="sentry_logs",          # log output directory
+    threshold=0.1,                   # blocking detection threshold (seconds)
+    async_threshold=1.0,             # slow async task threshold (seconds)
+    capture_args=True,               # capture function arguments at block time
+    detect_async_bottlenecks=True,   # track slow async tasks
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `base_dir` | `"sentry_logs"` | Directory for log output |
+| `threshold` | `0.1` | Seconds before a blocking call is flagged |
+| `async_threshold` | Same as `threshold` | Separate threshold for slow async tasks |
+| `capture_args` | `False` | Capture local variables from stack frames |
+| `detect_async_bottlenecks` | `False` | Monitor async task completion times |
+
+## FastAPI / Uvicorn
 
 ```python
 from contextlib import asynccontextmanager
@@ -47,45 +64,116 @@ from loopsentry import LoopSentry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    sentry = LoopSentry()
+    sentry = LoopSentry(
+        threshold=0.1,
+        async_threshold=2.0,
+        capture_args=True,
+        detect_async_bottlenecks=True,
+    )
     sentry.start()
     yield
 
 app = FastAPI(lifespan=lifespan)
-
-@app.get("/")
-async def root():
-    return {"message": "I am being monitored!"}
 ```
 
-### **Log Analysis**
+## What It Detects
+
+| Pattern | Type | Example |
+|---------|------|---------|
+| Blocking sleep | Block | `time.sleep()` in async context |
+| Sync HTTP | Block | `requests.get()` instead of aiohttp/httpx |
+| Sync DB calls | Block | PyMongo, sqlite3 sync operations |
+| Subprocess | Block | `subprocess.run()` |
+| CPU loops | Block | Tight loops without yielding |
+| Slow coroutines | Async | Tasks exceeding `async_threshold` |
+| Crashes | Crash | Process killed during a block |
+
+## CLI
+
+### Interactive TUI
 
 ```bash
-uv run loopsentry analyze -d log_directory
+loopsentry analyze                          # auto-select latest logs
+loopsentry analyze -d sentry_logs/          # specific directory
 ```
-NOTE: if you used pip to install then
+
+| Key | Action |
+|-----|--------|
+| `<ID>` | View event detail (stack trace, args, metrics) |
+| `n` / `p` | Next / Previous page |
+| `g` | Toggle group view (top offenders) |
+| `s` | Cycle sort: time → duration → cpu → memory → type |
+| `s:cpu` | Sort by specific column |
+| `/text` | Search/filter events |
+| `q` | Quit |
+
+### HTML Report
 
 ```bash
-loopsentry analyze -d log_directory
+loopsentry analyze -d sentry_logs/ --html
+loopsentry analyze -d sentry_logs/ --html -o report.html
 ```
 
-### CLI Controls
-*   **`/text`**: Search/Filter logs.
-*   **`g`**: Group view (see top offenders).
-*   **`s`**: Sort by Duration vs Time.
-*   **`ID`**: Enter an ID number to view stack trace & arguments.
+Generates a standalone HTML file — no dependencies, no internet required. Open directly in any browser.
 
-## Gallery
 
-### 1. Traceback with Argument Capture
-Pinpoint exactly *where* the code blocked and *what* arguments caused it.
-![Traceback View](https://raw.githubusercontent.com/amzker/loopsentry/master/images/traceback_blocker_view.png)
+[▶ View Sample Report](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/report.html)
 
-### 2. Grouped View (Top Offenders)
-Quickly identify which files or functions are causing the most performance hits.
-![Grouped View](https://raw.githubusercontent.com/amzker/loopsentry/master/images/grouped_view.png)
 
-### 3. Slow Async Task Detection
-Detect tasks that are async but still taking too long (Bottlenecks).
-![Slow Async View](https://raw.githubusercontent.com/amzker/loopsentry/master/images/slowasync_request_view.png)
+### CSV Export
 
+```bash
+loopsentry analyze -d sentry_logs/ --csv
+loopsentry analyze -d sentry_logs/ --csv -o data.csv
+```
+
+### Full CLI Reference
+
+```
+loopsentry analyze [OPTIONS]
+
+  -d, --dir DIR          Directory to scan
+  -f, --file FILE        Specific .jsonl file to scan
+  --html                 Generate standalone HTML report
+  --csv                  Generate CSV report
+  --sort COLUMN          Sort by: time | duration | cpu | memory | type
+  -o, --output PATH      Output file path for HTML/CSV
+```
+
+## Example
+
+The [`examples/`](examples/) directory contains a complete FastAPI application that deliberately triggers every type of blocking pattern LoopSentry detects.
+
+**Run the demo:**
+
+```bash
+cd examples/
+
+# Terminal 1 — start the server
+uv run app.py
+
+# Terminal 2 — fire test requests
+uv run loadtest.py
+
+# Terminal 1 — stop server (Ctrl+C), then generate report
+loopsentry analyze -d example_logs/ --html
+```
+
+**Endpoints in the demo app:**
+
+| Endpoint | What it does |
+|----------|-------------|
+| `GET /healthy` | Clean async endpoint (no block) |
+| `GET /users/sync` | Sync SQLite query blocking the loop |
+| `POST /hash` | CPU-bound PBKDF2 hashing |
+| `GET /external` | Async HTTP via httpx (clean) |
+| `GET /external/sync` | Sync HTTP via requests (blocks loop) |
+| `GET /sleep/{seconds}` | `time.sleep()` blocking the loop |
+| `GET /compute` | CPU-bound loop (5M iterations) |
+| `GET /mixed` | Sleep + DB + hashing in one request |
+
+
+
+## License
+
+MIT
