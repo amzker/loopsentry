@@ -5,7 +5,8 @@
 Detect blocking calls, slow async tasks, and performance bottlenecks in your asyncio applications. Captures stack traces, function arguments, CPU/memory/GC metrics. Generates standalone HTML reports and CSV exports.
 
 ### HTML Report 
-![Checkout Full HTML Report](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/report.html)
+[▶ View Sample Report](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/report.html)
+
 ![HTML Report](https://raw.githubusercontent.com/amzker/loopsentry/master/images/html_report.png)
 
 
