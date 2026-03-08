@@ -1,10 +1,17 @@
 import argparse
 import sys
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 from rich.console import Console
 from .analyzer import Analyzer
 
 console = Console()
+
+def _get_version():
+    try:
+        return version("loopsentry")
+    except PackageNotFoundError:
+        return "dev"
 
 def main():
     parser = argparse.ArgumentParser(
@@ -18,6 +25,7 @@ def main():
   loopsentry analyze --sort duration     # Start TUI sorted by duration
 """
     )
+    parser.add_argument("-V", "--version", action="version", version=f"loopsentry {_get_version()}")
     subparsers = parser.add_subparsers(dest="command")
     
     an_parser = subparsers.add_parser("analyze", help="Analyze captured logs")

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LoopSentry Load Test Report</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e17;--sf:#131829;--sf2:#1a2035;--bd:#252d48;
+  --text:#e2e8f0;--dim:#64748b;--accent:#6366f1;--accent2:#818cf8;
+  --red:#ef4444;--orange:#f97316;--yellow:#eab308;--green:#22c55e;--cyan:#06b6d4;--pink:#ec4899;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Fira Code',Consolas,monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);padding:0;line-height:1.6}
+.wrap{width:100%;padding:32px}
+h1{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:var(--dim);font-size:13px;margin-bottom:32px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:32px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;text-align:center}
+.card .v{font-size:30px;font-weight:800;margin-bottom:2px}
+.card .l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+.card.green .v{color:var(--green)}.card.red .v{color:var(--red)}
+.card.orange .v{color:var(--orange)}.card.cyan .v{color:var(--cyan)}
+.card.yellow .v{color:var(--yellow)}.card.pink .v{color:var(--pink)}
+.card.accent .v{color:var(--accent2)}
+h2{font-size:18px;font-weight:700;margin:32px 0 16px;color:var(--dim)}
+table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+th{background:var(--sf);padding:12px 14px;text-align:left;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.5px;color:var(--dim);border-bottom:2px solid var(--bd)}
+td{padding:10px 14px;border-bottom:1px solid var(--bd)}
+tr:hover{background:var(--sf2)}
+.mono{font-family:var(--mono);font-size:12px}
+.num{font-family:var(--mono);text-align:right}
+.ok{color:var(--green)}.err{color:var(--red);font-weight:700}.slow-val{color:var(--orange);font-weight:700}
+.fail td{border-left:3px solid var(--red)}
+.config{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:20px;margin-bottom:32px;font-size:13px;display:flex;gap:32px;flex-wrap:wrap}
+.config dt{color:var(--dim);font-weight:600}.config dd{color:var(--text);font-family:var(--mono)}
+.footer{text-align:center;padding:32px 0;color:var(--dim);font-size:12px;border-top:1px solid var(--bd);margin-top:48px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚡ LoopSentry Load Test Report</h1>
+  <div class="sub">Generated 2026-03-09T00:00:37.498076 — Target: http://0.0.0.0:8000</div>
+
+  <div class="config">
+    <div><dt>Concurrency</dt><dd>100</dd></div>
+    <div><dt>Duration</dt><dd>120s</dd></div>
+    <div><dt>Slow Threshold</dt><dd>0.5s</dd></div>
+    <div><dt>Wall Time</dt><dd>121.71s</dd></div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent"><div class="v">11,396</div><div class="l">Total Requests</div></div>
+    <div class="card green"><div class="v">11,392</div><div class="l">Success</div></div>
+    <div class="card red"><div class="v">4</div><div class="l">Failed</div></div>
+    <div class="card orange"><div class="v">8,482</div><div class="l">Slow</div></div>
+    <div class="card cyan"><div class="v">93.63</div><div class="l">Req/sec</div></div>
+    <div class="card yellow"><div class="v">1.0556s</div><div class="l">Avg Latency</div></div>
+    <div class="card pink"><div class="v">2.3554s</div><div class="l">P95 Latency</div></div>
+    <div class="card red"><div class="v">3.1693s</div><div class="l">P99 Latency</div></div>
+  </div>
+
+  <h2>Per-Endpoint Breakdown</h2>
+  <table>
+    <thead><tr>
+      <th>Endpoint</th><th>Label</th><th>Count</th><th>✅ OK</th><th>❌ Fail</th><th>🐢 Slow</th>
+      <th>Avg</th><th>Min</th><th>Max</th><th>P50</th><th>P95</th><th>P99</th>
+    </tr></thead>
+    <tbody><tr class="">
+                <td class="mono">POST /hash?password=long</td><td>CPU: PBKDF2 Hash</td>
+                <td class="num">1,068</td>
+                <td class="num ok">1,068</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">658</td>
+                <td class="num">0.6970s</td>
+                <td class="num">0.0618s</td>
+                <td class="num">3.0489s</td>
+                <td class="num">0.6349s</td>
+                <td class="num">1.4814s</td>
+                <td class="num">1.9618s</td>
+            </tr><tr class="">
+                <td class="mono">GET /sleep/1.0</td><td>Blocking Sleep 1.0s</td>
+                <td class="num">1,060</td>
+                <td class="num ok">1,060</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">1,060</td>
+                <td class="num">1.6734s</td>
+                <td class="num">1.0342s</td>
+                <td class="num">3.6811s</td>
+                <td class="num">1.5869s</td>
+                <td class="num">2.3944s</td>
+                <td class="num">2.8372s</td>
+            </tr><tr class="">
+                <td class="mono">GET /users/sync</td><td>Sync DB Read</td>
+                <td class="num">1,046</td>
+                <td class="num ok">1,046</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">699</td>
+                <td class="num">0.9151s</td>
+                <td class="num">0.0102s</td>
+                <td class="num">4.5223s</td>
+                <td class="num">0.8171s</td>
+                <td class="num">2.2757s</td>
+                <td class="num">2.9914s</td>
+            </tr><tr class="">
+                <td class="mono">GET /mixed</td><td>Mixed Workload</td>
+                <td class="num">1,045</td>
+                <td class="num ok">1,045</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">972</td>
+                <td class="num">1.6502s</td>
+                <td class="num">0.2617s</td>
+                <td class="num">6.5804s</td>
+                <td class="num">1.4695s</td>
+                <td class="num">3.4062s</td>
+                <td class="num">4.3386s</td>
+            </tr><tr class="">
+                <td class="mono">GET /healthy</td><td>Healthcheck</td>
+                <td class="num">1,043</td>
+                <td class="num ok">1,043</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">192</td>
+                <td class="num">0.3516s</td>
+                <td class="num">0.0116s</td>
+                <td class="num">2.4053s</td>
+                <td class="num">0.2702s</td>
+                <td class="num">0.8809s</td>
+                <td class="num">1.4878s</td>
+            </tr><tr class="fail">
+                <td class="mono">GET /external/sync</td><td>Sync HTTP (blocks)</td>
+                <td class="num">1,041</td>
+                <td class="num ok">1,037</td>
+                <td class="num err">4</td>
+                <td class="num slow-val">1,041</td>
+                <td class="num">1.6619s</td>
+                <td class="num">1.0335s</td>
+                <td class="num">3.6131s</td>
+                <td class="num">1.5930s</td>
+                <td class="num">2.3436s</td>
+                <td class="num">2.8409s</td>
+            </tr><tr class="">
+                <td class="mono">GET /users/5</td><td>User Lookup</td>
+                <td class="num">1,039</td>
+                <td class="num ok">1,039</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">685</td>
+                <td class="num">0.9282s</td>
+                <td class="num">0.0038s</td>
+                <td class="num">4.7621s</td>
+                <td class="num">0.8104s</td>
+                <td class="num">2.4498s</td>
+                <td class="num">3.3080s</td>
+            </tr><tr class="">
+                <td class="mono">POST /hash?password=secret123</td><td>CPU: PBKDF2 Hash</td>
+                <td class="num">1,031</td>
+                <td class="num ok">1,031</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">650</td>
+                <td class="num">0.6714s</td>
+                <td class="num">0.0572s</td>
+                <td class="num">3.0354s</td>
+                <td class="num">0.6188s</td>
+                <td class="num">1.3269s</td>
+                <td class="num">1.9114s</td>
+            </tr><tr class="">
+                <td class="mono">GET /users/1</td><td>User Lookup</td>
+                <td class="num">1,021</td>
+                <td class="num ok">1,021</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">674</td>
+                <td class="num">0.9289s</td>
+                <td class="num">0.0099s</td>
+                <td class="num">4.2964s</td>
+                <td class="num">0.8264s</td>
+                <td class="num">2.4035s</td>
+                <td class="num">3.1668s</td>
+            </tr><tr class="">
+                <td class="mono">GET /sleep/0.5</td><td>Blocking Sleep 0.5s</td>
+                <td class="num">1,012</td>
+                <td class="num ok">1,012</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">1,012</td>
+                <td class="num">1.1699s</td>
+                <td class="num">0.5482s</td>
+                <td class="num">3.2019s</td>
+                <td class="num">1.0888s</td>
+                <td class="num">1.9006s</td>
+                <td class="num">2.6672s</td>
+            </tr><tr class="">
+                <td class="mono">GET /compute</td><td>CPU-bound Loop</td>
+                <td class="num">990</td>
+                <td class="num ok">990</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">839</td>
+                <td class="num">0.9536s</td>
+                <td class="num">0.2254s</td>
+                <td class="num">3.3223s</td>
+                <td class="num">0.8950s</td>
+                <td class="num">1.8835s</td>
+                <td class="num">2.5451s</td>
+            </tr></tbody>
+  </table>
+
+  <div class="footer">Generated by <strong>LoopSentry Load Tester</strong></div>
+</div>
+</body>
+</html>
