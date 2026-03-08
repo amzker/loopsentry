@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/amzker/loopsentry/master/images/logo.png" alt="LoopSentry" width="120">
+</p>
+
 # LoopSentry
 
 ### Asyncio Event Loop Blocker Detector & Analyzer
@@ -22,6 +26,8 @@ OR
 uv add loopsentry
 ```
 
+> **Requires** `psutil` and `rich` (installed automatically as dependencies).
+
 ## Quick Start
 
 ```python
@@ -32,6 +38,7 @@ async def main():
     sentry = LoopSentry(threshold=0.1)
     sentry.start()
     # ... your application
+    sentry.stop()
 
 asyncio.run(main())
 ```
@@ -73,6 +80,7 @@ async def lifespan(app: FastAPI):
     )
     sentry.start()
     yield
+    sentry.stop()
 
 app = FastAPI(lifespan=lifespan)
 ```
@@ -131,6 +139,7 @@ loopsentry analyze -d sentry_logs/ --csv -o data.csv
 ### Full CLI Reference
 
 ```
+loopsentry --version                   # Show version
 loopsentry analyze [OPTIONS]
 
   -d, --dir DIR          Directory to scan
@@ -154,7 +163,10 @@ cd examples/
 uv run app.py
 
 # Terminal 2 — fire test requests
-uv run loadtest.py
+uv run mock_server.py
+
+# Terminal 3 — fire test requests
+uv run loadtest.py -d 120 -o example_logs/loadtest
 
 # Terminal 1 — stop server (Ctrl+C), then generate report
 loopsentry analyze -d example_logs/ --html
@@ -167,12 +179,22 @@ loopsentry analyze -d example_logs/ --html
 | `GET /healthy` | Clean async endpoint (no block) |
 | `GET /users/sync` | Sync SQLite query blocking the loop |
 | `POST /hash` | CPU-bound PBKDF2 hashing |
-| `GET /external` | Async HTTP via httpx (clean) |
+| `GET /external` | Async HTTP via aiohttp (clean) |
 | `GET /external/sync` | Sync HTTP via requests (blocks loop) |
 | `GET /sleep/{seconds}` | `time.sleep()` blocking the loop |
 | `GET /compute` | CPU-bound loop (5M iterations) |
 | `GET /mixed` | Sleep + DB + hashing in one request |
 
+
+## How to Interpret the result
+
+blocks smaller than 0.5 sec during high load / stress testing should be ignored.
+grouped view is just so you can find offender quickly , but in order for you to understand overall health of app , you should switch to timeline mode and see block durations across all events , to get better idea. during heavy load smaller non attention required tasks will also start blocking the event loop , unless those blocks are not associated with massvie cpu usage then you should focus on them later and should focus on blocks where avg block is greater than 0.6-7 seconds. in group view you do not need read each and every separate event , you can just read 1st one and get the idea of blocks.
+
+you also need to take concurrency as variable to mind , check out [report_async.html](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/example_logs_async_app/report_async.html) and [report.html](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/report.html)  to understand how to interpret both blocks , also look at their loadtest.html files [loadtest_async.html](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/example_logs_async_app/loadtest.html) and [loadtest.html](https://htmlpreview.github.io/?https://github.com/amzker/loopsentry/blob/master/examples/loadtest.html) 
+
+async app has proccessed ~11k requests in 2 min , while sync app has around 1k requests in 2min.
+if you notice in async app there is no block , all of the blocks are from loopsentry itself and that is expected , loopsentry will also have its own blockings given stack frames capture as well as , per core cpu usage etc... processes happens. which is fine given the value it can provide. 
 
 
 ## License

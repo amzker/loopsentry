@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-import httpx
+import aiohttp
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from loopsentry import LoopSentry
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     init_db()
     sentry = LoopSentry(
         base_dir="example_logs",
-        threshold=0.05,
+        threshold=0.1,
         async_threshold=0.5,
         capture_args=True,
         detect_async_bottlenecks=True,
@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
     sentry.start()
     yield
     DB_PATH.unlink(missing_ok=True)
+    sentry.stop()
 
 
 app = FastAPI(title="LoopSentry Demo API", lifespan=lifespan)
@@ -75,15 +76,15 @@ async def hash_password(password: str = "default"):
 
 @app.get("/external")
 async def external_call():
-    async with httpx.AsyncClient() as client:
-        resp = await client.get("https://httpbin.org/delay/1")
-        return resp.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get("http://127.0.0.1:9999/delay/1") as resp:
+            return await resp.json(content_type=None)
 
 
 @app.get("/external/sync")
 async def external_sync():
     import requests
-    resp = requests.get("https://httpbin.org/delay/1")
+    resp = requests.get("http://127.0.0.1:9999/delay/1")
     return resp.json()
 
 

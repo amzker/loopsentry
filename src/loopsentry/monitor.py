@@ -10,14 +10,9 @@ import signal
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console
+import psutil
 
 console = Console()
-
-try:
-    import psutil
-    PSUTIL_AVAILABLE = True
-except ImportError:
-    PSUTIL_AVAILABLE = False
 
 class LoopSentry:
     def __init__(
@@ -49,9 +44,11 @@ class LoopSentry:
         self.log_file = self.log_dir / f"sentry_{self.pid}.jsonl"
         self._file_handle = open(self.log_file, "a", encoding="utf-8")
         
-        self.process = psutil.Process(self.pid) if PSUTIL_AVAILABLE else None
+        self.process = psutil.Process(self.pid)
 
         self._original_factory = None
+        self._factory_installed = False
+        self._loop = None
 
     def start(self):
         if self.running: return
@@ -70,11 +67,13 @@ class LoopSentry:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
+        self._loop = loop
         loop.call_soon(self._ticker)
         
         if self.detect_async_bottlenecks:
             self._original_factory = loop.get_task_factory()
             loop.set_task_factory(self._sentry_task_factory)
+            self._factory_installed = True
             console.print("[cyan]ℹ Async Bottleneck Detector Enabled[/cyan]")
 
         self.thread = threading.Thread(target=self._watchdog, daemon=True, name="LoopSentry-Watchdog")
@@ -82,13 +81,36 @@ class LoopSentry:
         
         console.print(f"[green]✔ LoopSentry Active.[/green] [dim]PID: {self.pid} | Threshold: {self.threshold}s | Async Threshold: {self.async_threshold}s | Capture Args: {self.capture_args}[/dim]")
 
-    def _signal_handler(self, signum, frame):
+    def stop(self):
+        """Stop monitoring and clean up resources."""
+        if not self.running:
+            return
         self.running = False
         self._stop_event.set()
-        if self._file_handle:
-            self._file_handle.flush()
-            self._file_handle.close()
-        sys.exit(0)
+
+        # Restore original task factory
+        if self._loop and self._factory_installed:
+            try:
+                self._loop.set_task_factory(self._original_factory)
+            except Exception:
+                pass
+            self._factory_installed = False
+
+        # Flush and close log file
+        if self._file_handle and not self._file_handle.closed:
+            try:
+                self._file_handle.flush()
+                self._file_handle.close()
+            except Exception:
+                pass
+
+        console.print("[yellow]⏹ LoopSentry Stopped.[/yellow]")
+
+    def _signal_handler(self, signum, frame):
+        self.stop()
+        # Restore default handler and re-raise so the process actually exits
+        signal.signal(signum, signal.SIG_DFL)
+        os.kill(os.getpid(), signum)
 
     def _safe_repr(self, obj, max_len=150):
         try:
@@ -168,8 +190,8 @@ class LoopSentry:
 
     def _ticker(self):
         self._last_tick = time.time()
-        if self.running:
-            asyncio.get_event_loop().call_later(self.threshold / 2, self._ticker)
+        if self.running and self._loop:
+            self._loop.call_later(self.threshold / 2, self._ticker)
 
     def _watchdog(self):
         while self.running and not self._stop_event.is_set():
@@ -209,17 +231,18 @@ class LoopSentry:
         """Get system metrics (CPU, memory, GC) as a dict."""
         metrics = {
             "cpu_percent": 0.0,
+            "cpu_per_core": [],
             "memory_mb": 0.0,
             "thread_count": threading.active_count(),
             "gc_counts": list(gc.get_count()),
         }
-        if self.process:
-            try:
-                with self.process.oneshot():
-                    metrics["cpu_percent"] = self.process.cpu_percent()
-                    metrics["memory_mb"] = round(self.process.memory_info().rss / 1024 / 1024, 2)
-            except Exception:
-                pass
+        try:
+            per_core = psutil.cpu_percent(percpu=True)
+            metrics["cpu_per_core"] = per_core
+            metrics["cpu_percent"] = round(sum(per_core) / len(per_core), 1) if per_core else 0.0
+            metrics["memory_mb"] = round(self.process.memory_info().rss / 1024 / 1024, 2)
+        except:
+            pass
         return metrics
 
     def _capture_state(self):

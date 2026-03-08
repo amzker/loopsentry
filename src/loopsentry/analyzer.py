@@ -19,7 +19,7 @@ class Analyzer:
     def __init__(self, path):
         self.path = Path(path)
         self.blocks = []
-        self.stats = {"total_time": 0.0, "count": 0, "crashes": 0, "async_slow": 0,
+        self.stats = {"total_time": 0.0, "async_total_time": 0.0, "count": 0, "crashes": 0, "async_slow": 0,
                       "max_cpu": 0.0, "max_mem": 0.0, "avg_duration": 0.0}
         self.page = 1
         self.page_size = 15
@@ -54,12 +54,15 @@ class Analyzer:
                                 entry['trigger'] = f"{entry.get('coro')} ({entry.get('task_name')})"
                                 self.blocks.append(entry)
                                 self.stats['async_slow'] += 1
+                                if isinstance(entry['duration_current'], (int, float)):
+                                    self.stats['async_total_time'] += entry['duration_current']
                                 self._update_sys_stats(entry)
                                 continue
                             if entry['type'] == 'block_started':
                                 if current_block:
                                     current_block['total_duration'] = "TRANSITION"
                                     current_block['resolved'] = True
+                                    current_block['hint'] = self._analyze_heuristics(current_block)
                                     self.blocks.append(current_block)
                                 current_block = entry
                             elif entry['type'] == 'block_resolved' and current_block:
@@ -83,9 +86,8 @@ class Analyzer:
             except Exception as e:
                 console.print(f"[red]Error reading {f}: {e}[/red]")
 
-        total_events = self.stats['count'] + self.stats['async_slow']
-        if total_events > 0:
-            self.stats['avg_duration'] = self.stats['total_time'] / total_events
+        if self.stats['count'] > 0:
+            self.stats['avg_duration'] = self.stats['total_time'] / self.stats['count']
         self._apply_sort()
 
     def _update_sys_stats(self, block):
@@ -241,6 +243,10 @@ class Analyzer:
         gc_counts = sys_d.get('gc_counts')
         if gc_counts:
             info.add_row("GC Counts:", f"Gen0={gc_counts[0]} Gen1={gc_counts[1]} Gen2={gc_counts[2]}")
+        per_core = sys_d.get('cpu_per_core', [])
+        if per_core:
+            core_str = " ".join(f"[{'red' if c>80 else 'yellow' if c>40 else 'green'}]{i}:{c:.0f}%[/]" for i, c in enumerate(per_core))
+            info.add_row("Per Core:", core_str)
         if 'task_name' in block:
              info.add_row("Task:", block['task_name'])
              info.add_row("Coroutine:", block.get('coro'))
