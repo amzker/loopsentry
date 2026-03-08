@@ -14,7 +14,7 @@
 - Process terminates cleanly even with multiple uvicorn workers
 
 **Analyzer Enhancements**
-- Added `hint` field for transition blocks (human-readable block type classification)
+- Added `hint` field for transition blocks 
 - Added `async_total_time` stat — tracks cumulative duration of slow async tasks separately from blocking time
 - Fixed `avg_duration` to only count blocking events (previously included async events)
 
@@ -31,7 +31,6 @@
 - **Column headers in groups** — expanded groups show sub-headers so columns are always readable
 - Removed timeline bar chart
 - Full-width layout
-- Filter inputs no longer lose focus on page re-render (static HTML elements with debounce)
 
 ### Examples
 

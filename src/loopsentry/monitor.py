@@ -47,6 +47,7 @@ class LoopSentry:
         self.process = psutil.Process(self.pid)
 
         self._original_factory = None
+        self._factory_installed = False
         self._loop = None
 
     def start(self):
@@ -72,6 +73,7 @@ class LoopSentry:
         if self.detect_async_bottlenecks:
             self._original_factory = loop.get_task_factory()
             loop.set_task_factory(self._sentry_task_factory)
+            self._factory_installed = True
             console.print("[cyan]ℹ Async Bottleneck Detector Enabled[/cyan]")
 
         self.thread = threading.Thread(target=self._watchdog, daemon=True, name="LoopSentry-Watchdog")
@@ -87,12 +89,12 @@ class LoopSentry:
         self._stop_event.set()
 
         # Restore original task factory
-        if self._loop and self._original_factory is not None:
+        if self._loop and self._factory_installed:
             try:
                 self._loop.set_task_factory(self._original_factory)
             except Exception:
                 pass
-            self._original_factory = None
+            self._factory_installed = False
 
         # Flush and close log file
         if self._file_handle and not self._file_handle.closed:

@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 
-BASE = "http://0.0.0.0:8000"
+BASE = "http://127.0.0.1:8000"
 
 ENDPOINTS = [
     ("GET",  "/healthy",                "Healthcheck"),

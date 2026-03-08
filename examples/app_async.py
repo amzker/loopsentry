@@ -63,6 +63,10 @@ class SharedAiosqlitePool:
                 await conn.execute("SELECT 1")
                 return conn
             except Exception:
+                try:
+                    await conn.close()
+                except Exception:
+                    pass
                 self._created -= 1
         except asyncio.QueueEmpty:
             pass
@@ -70,7 +74,11 @@ class SharedAiosqlitePool:
         async with self._lock:
             if self._created < self._pool_size:
                 self._created += 1
-                return await self._create_conn()
+                try:
+                    return await self._create_conn()
+                except Exception:
+                    self._created -= 1
+                    raise
 
         return await self._pool.get()
 
