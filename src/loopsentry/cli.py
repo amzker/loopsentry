@@ -1,19 +1,23 @@
+from __future__ import annotations
+
 import argparse
 import sys
 from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
+
 from rich.console import Console
+
 from .analyzer import Analyzer
 
 console = Console()
 
-def _get_version():
+def _get_version() -> str:
     try:
         return version("loopsentry")
     except PackageNotFoundError:
         return "dev"
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="LoopSentry: Asyncio Event Loop Blocker Detector & Analyzer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -31,8 +35,16 @@ def main():
     an_parser = subparsers.add_parser("analyze", help="Analyze captured logs")
     an_parser.add_argument("-d", "--dir", help="Directory to scan")
     an_parser.add_argument("-f", "--file", help="Specific .jsonl file to scan")
+    an_parser.add_argument(
+        "--project-root",
+        action="append",
+        dest="project_roots",
+        metavar="PATH",
+        help="Treat this path as application code (repeatable). Use for editable installs under site-packages.",
+    )
     an_parser.add_argument("--html", action="store_true", help="Generate standalone HTML report")
     an_parser.add_argument("--csv", action="store_true", help="Generate CSV report")
+    an_parser.add_argument("--summary", action="store_true", help="Print a summary of unique culprit offenders")
     an_parser.add_argument("--sort", choices=["time", "duration", "cpu", "memory", "type"],
                            default="time", help="Sort events by column (default: time)")
     an_parser.add_argument("-o", "--output", help="Output file path for HTML/CSV")
@@ -55,7 +67,7 @@ def main():
                 console.print("[red]No sentry_logs/ directory found.[/red]")
                 return
 
-        analyzer = Analyzer(target)
+        analyzer = Analyzer(target, project_roots=getattr(args, "project_roots", None))
         analyzer.sort_by = args.sort
         analyzer.run()
 
@@ -63,7 +75,12 @@ def main():
             console.print("[yellow]No events found in logs.[/yellow]")
             return
 
-        if args.html:
+        if args.summary:
+            if args.csv:
+                analyzer.render_summary_csv(args.output)
+            else:
+                analyzer.print_summary()
+        elif args.html:
             analyzer.render_html(args.output)
         elif args.csv:
             analyzer.render_csv(args.output)

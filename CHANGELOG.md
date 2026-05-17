@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.0 — 2026-05-17
+
+- Improved report UX with a new culprit-summary/digest section and added summary export to CSV.
+
 ## v1.1.1 — 2026-03-09
 
 ### Core Improvements

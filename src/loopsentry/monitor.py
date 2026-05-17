@@ -1,73 +1,87 @@
+from __future__ import annotations
+
 import asyncio
-import time
-import threading
-import sys
-import traceback
-import json
 import gc
 import os
-import signal
-from datetime import datetime
+import sys
+import threading
+import time
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
-from rich.console import Console
+from types import FrameType
+from typing import Any, Callable
+
+from asyncio import AbstractEventLoop, Task
+
+import orjson
 import psutil
+from rich.console import Console
 
 console = Console()
 
+EventData = dict[str, Any]
+
+
 class LoopSentry:
     def __init__(
-        self, 
-        base_dir="sentry_logs", 
-        threshold=0.1, 
-        async_threshold=None,
-        capture_args=False,
-        detect_async_bottlenecks=False
-    ):
-        self.threshold = threshold
-        self.async_threshold = async_threshold if async_threshold is not None else threshold
-        self.capture_args = capture_args
-        self.detect_async_bottlenecks = detect_async_bottlenecks
-        
-        self.running = False
-        self._last_tick = 0
+        self,
+        base_dir: str = "sentry_logs",
+        threshold: float = 0.1,
+        async_threshold: float | None = None,
+        capture_args: bool = False,
+        detect_async_bottlenecks: bool = False,
+    ) -> None:
+        self.threshold: float = threshold
+        self.async_threshold: float = async_threshold if async_threshold is not None else threshold
+        self.capture_args: bool = capture_args
+        self.detect_async_bottlenecks: bool = detect_async_bottlenecks
+
+        self.running: bool = False
+        self._last_tick: float = 0.0
+        self._is_blocking: bool = False
+        self._stop_event: threading.Event = threading.Event()
+        self._file_lock: threading.RLock = threading.RLock()
+
+        self._segment_start_time: float = 0.0
+        self._last_stack_signature: str | None = None
+
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        self.log_dir: Path = Path(base_dir) / date_str
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        self.pid: int = os.getpid()
+        self.log_file: Path = self.log_dir / f"sentry_{self.pid}.jsonl"
+        self._file_handle = open(self.log_file, "ab")
+
+        self.process: psutil.Process = psutil.Process(self.pid)
+
+        self._original_factory: Callable[..., Task[Any]] | None = None
+        self._factory_installed: bool = False
+        self._loop: AbstractEventLoop | None = None
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self.running:
+            return
+        if self._stop_event.is_set():
+            self._stop_event = threading.Event()
         self._is_blocking = False
-        self._stop_event = threading.Event()
-        
         self._segment_start_time = 0
         self._last_stack_signature = None
-        
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        self.log_dir = Path(base_dir) / date_str
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.pid = os.getpid()
-        self.log_file = self.log_dir / f"sentry_{self.pid}.jsonl"
-        self._file_handle = open(self.log_file, "a", encoding="utf-8")
-        
-        self.process = psutil.Process(self.pid)
-
-        self._original_factory = None
-        self._factory_installed = False
-        self._loop = None
-
-    def start(self):
-        if self.running: return
-        self.running = True
-        self._last_tick = time.time()
-        
-        try:
-            signal.signal(signal.SIGINT, self._signal_handler)
-            signal.signal(signal.SIGTERM, self._signal_handler)
-        except ValueError:
-            pass
+        self._ensure_log_file_open()
 
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            raise RuntimeError(
+                "LoopSentry.start() requires an active asyncio event loop. "
+                "Start it from FastAPI lifespan, app startup, or another running async context."
+            ) from None
 
         self._loop = loop
+        self.running = True
+        self._last_tick = time.time()
         loop.call_soon(self._ticker)
         
         if self.detect_async_bottlenecks:
@@ -81,8 +95,7 @@ class LoopSentry:
         
         console.print(f"[green]✔ LoopSentry Active.[/green] [dim]PID: {self.pid} | Threshold: {self.threshold}s | Async Threshold: {self.async_threshold}s | Capture Args: {self.capture_args}[/dim]")
 
-    def stop(self):
-        """Stop monitoring and clean up resources."""
+    def stop(self) -> None:
         if not self.running:
             return
         self.running = False
@@ -96,106 +109,114 @@ class LoopSentry:
                 pass
             self._factory_installed = False
 
+        thread = getattr(self, "thread", None)
+        if thread and thread.is_alive():
+            thread.join(timeout=self.threshold * 2)
+
         # Flush and close log file
-        if self._file_handle and not self._file_handle.closed:
-            try:
-                self._file_handle.flush()
-                self._file_handle.close()
-            except Exception:
-                pass
+        with self._file_lock:
+            if self._file_handle and not self._file_handle.closed:
+                try:
+                    self._file_handle.flush()
+                    self._file_handle.close()
+                except Exception:
+                    pass
 
         console.print("[yellow]⏹ LoopSentry Stopped.[/yellow]")
 
-    def _signal_handler(self, signum, frame):
-        self.stop()
-        # Restore default handler and re-raise so the process actually exits
-        signal.signal(signum, signal.SIG_DFL)
-        os.kill(os.getpid(), signum)
-
-    def _safe_repr(self, obj, max_len=150):
+    def _safe_repr(self, obj: Any, max_len: int = 150) -> str:
         try:
             s = repr(obj)
             return s[:max_len] + "..." if len(s) > max_len else s
         except:
             return "<unprintable>"
 
-    def _capture_creation_traceback(self):
-        """Capture a cleaned-up traceback at task creation time."""
+    def _capture_creation_traceback(self) -> list[str]:
         try:
-            raw_stack = traceback.format_stack()
-            # Filter out LoopSentry internals and asyncio internals
-            cleaned = []
-            for frame in raw_stack:
-                if "loopsentry/monitor.py" in frame:
-                    continue
-                if "asyncio/" in frame and "task_factory" not in frame:
-                    continue
-                cleaned.append(frame)
-            return cleaned if cleaned else raw_stack[-3:]
-        except:
+            f = sys._getframe()
+            frames = []
+            while f:
+                co = f.f_code
+                filename = co.co_filename
+                if "loopsentry/monitor.py" not in filename and ("asyncio/" not in filename or "task_factory" in filename):
+                    frames.append(f'  File "{filename}", line {f.f_lineno}, in {co.co_name}\n')
+                f = f.f_back
+            frames = frames[:10]
+            frames.reverse()
+            return frames
+        except Exception:
             return []
 
-    def _sentry_task_factory(self, loop, coro, context=None):
+    def _sentry_task_factory(
+        self,
+        loop: AbstractEventLoop,
+        coro: Any,
+        context: Any = None,
+    ) -> Task[Any]:
         if self._original_factory:
             task = self._original_factory(loop, coro, context)
         else:
-            task = asyncio.Task(coro, loop=loop, context=context)
+            task = Task(coro, loop=loop, context=context)
 
-        task._sentry_start = time.time()
-        
-        # Capture traceback at creation time (before frame is destroyed)
-        task._sentry_creation_stack = self._capture_creation_traceback()
-        
-        # Capture Args at Start (Before frame is destroyed)
-        task._sentry_locals = {}
+        setattr(task, "_sentry_start", time.time())
+        setattr(task, "_sentry_creation_stack", self._capture_creation_traceback())
+        setattr(task, "_sentry_locals", {})
         if self.capture_args:
             try:
-                if hasattr(coro, 'cr_frame') and coro.cr_frame:
+                if hasattr(coro, "cr_frame") and coro.cr_frame:
                     raw_locals = coro.cr_frame.f_locals
-                    task._sentry_locals = {k: self._safe_repr(v) for k, v in raw_locals.items() if not k.startswith('_')}
+                    setattr(
+                        task,
+                        "_sentry_locals",
+                        {k: self._safe_repr(v) for k, v in raw_locals.items() if not k.startswith("_")},
+                    )
             except:
                 pass
 
-        def _on_done(t):
-            duration = time.time() - t._sentry_start
+        def _on_done(t: Task[Any]) -> None:
+            duration = time.time() - getattr(t, "_sentry_start")
             if duration > self.async_threshold:
                 coro_obj = t.get_coro()
-                coro_name = getattr(coro_obj, '__name__', str(coro_obj))
-                
-                # Capture exception info if task failed
-                exception_info = None
+                coro_name = getattr(coro_obj, "__name__", str(coro_obj))
+
+                exception_info: EventData | None = None
                 try:
                     exc = t.exception()
                     if exc:
                         exception_info = {
                             "type": type(exc).__name__,
                             "message": str(exc),
-                            "traceback": traceback.format_exception(type(exc), exc, exc.__traceback__)
+                            "traceback": traceback.format_exception(type(exc), exc, exc.__traceback__),
                         }
                 except (asyncio.CancelledError, asyncio.InvalidStateError):
                     pass
 
-                self._write_event("async_bottleneck", {
-                    "task_name": t.get_name(),
-                    "coro": coro_name,
-                    "info": "Slow Async Task",
-                    "stack": getattr(t, '_sentry_creation_stack', []),
-                    "locals": [{"func": coro_name, "vars": t._sentry_locals}] if t._sentry_locals else [],
-                    "exception": exception_info,
-                    "sys": self._get_sys_metrics(),
-                }, duration=duration)
+                self._write_event(
+                    "async_bottleneck",
+                    {
+                        "task_name": t.get_name(),
+                        "coro": coro_name,
+                        "info": "Slow Async Task",
+                        "stack": getattr(t, "_sentry_creation_stack", []),
+                        "locals": [{"func": coro_name, "vars": getattr(t, "_sentry_locals")}] if getattr(t, "_sentry_locals") else [],
+                        "exception": exception_info,
+                        # sys metrics added by watchdog thread
+                    },
+                    duration=duration,
+                )
 
         task.add_done_callback(_on_done)
         return task
 
-    def _ticker(self):
+    def _ticker(self) -> None:
         self._last_tick = time.time()
         if self.running and self._loop:
             self._loop.call_later(self.threshold / 2, self._ticker)
 
-    def _watchdog(self):
+    def _watchdog(self) -> None:
         while self.running and not self._stop_event.is_set():
-            time.sleep(self.threshold)
+            self._stop_event.wait(timeout=self.threshold)
+
             now = time.time()
             delta = now - self._last_tick
             
@@ -227,9 +248,8 @@ class LoopSentry:
                     console.print(f"[green]✔ Recovered.[/green]")
                     self._last_stack_signature = None
 
-    def _get_sys_metrics(self):
-        """Get system metrics (CPU, memory, GC) as a dict."""
-        metrics = {
+    def _get_sys_metrics(self) -> EventData:
+        metrics: EventData = {
             "cpu_percent": 0.0,
             "cpu_per_core": [],
             "memory_mb": 0.0,
@@ -245,9 +265,9 @@ class LoopSentry:
             pass
         return metrics
 
-    def _capture_state(self):
-        data = {
-            "timestamp": datetime.now().isoformat(),
+    def _capture_state(self) -> EventData:
+        data: EventData = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "stack": [],
             "locals": [],
             "trigger": "Unknown",
@@ -255,7 +275,7 @@ class LoopSentry:
         }
         try:
             main_id = threading.main_thread().ident
-            frames = sys._current_frames()
+            frames: dict[int, FrameType] = sys._current_frames()
             frame = frames.get(main_id)
             if frame:
                 stack = traceback.format_stack(frame)
@@ -277,7 +297,7 @@ class LoopSentry:
                                 "func": func_name,
                                 "file": Path(curr.f_code.co_filename).name,
                                 "line": curr.f_lineno,
-                                "vars": local_vars
+                                "vars": local_vars,
                             })
                         curr = curr.f_back
                         depth += 1
@@ -286,16 +306,57 @@ class LoopSentry:
 
         return data
 
-    def _write_event(self, event_type, data, duration=0.0):
-        entry = {
-            "type": event_type,
+    def _ensure_log_file_open(self) -> bool:
+        if self._file_handle and not self._file_handle.closed:
+            return True
+        with self._file_lock:
+            if self._file_handle and not self._file_handle.closed:
+                return True
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            self._file_handle = open(self.log_file, "ab")
+            return True
+
+    def _log_internal_warning(self, message: str) -> None:
+        console.print(f"[yellow]LoopSentry warning:[/yellow] {message}")
+        entry: EventData = {
+            "type": "loopsentry_warning",
             "pid": self.pid,
-            "timestamp": datetime.now().isoformat(),
-            "duration_current": duration,
-            **data
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "duration_current": 0.0,
+            "warning": message,
         }
+        self._emit_entry(entry)
+
+    def _emit_entry(self, entry: EventData) -> None:
+        self._file_handle.write(orjson.dumps(entry) + b"\n")
+        self._file_handle.flush()
+
+    def _write_event(self, event_type: str, data: EventData, duration: float = 0.0) -> None:
+        entry: EventData = {
+            "type": event_type,
+            "pid": data.get("pid", self.pid),
+            "timestamp": data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+            "duration_current": data.get("duration_current", duration),
+            **{k: v for k, v in data.items() if k not in {"pid", "timestamp", "duration_current"}},
+        }
+        if "sys" not in entry:
+            entry["sys"] = self._get_sys_metrics()
         try:
-            self._file_handle.write(json.dumps(entry) + "\n")
-            self._file_handle.flush()
-        except Exception:
-            pass
+            with self._file_lock:
+                if self._file_handle.closed:
+                    self._ensure_log_file_open()
+                    self._log_internal_warning("log file was closed during event write and has been reopened")
+                self._emit_entry(entry)
+        except Exception as exc:
+            reopened = False
+            try:
+                with self._file_lock:
+                    self._ensure_log_file_open()
+                reopened = True
+            except Exception:
+                pass
+            if reopened:
+                with self._file_lock:
+                    self._log_internal_warning(f"log write failed with {type(exc).__name__}; file reopened and write skipped")
+            else:
+                console.print(f"[yellow]LoopSentry warning:[/yellow] log write failed with {type(exc).__name__} and reopen also failed")
