@@ -69,3 +69,12 @@ def test_analyzer_prints_summary(capsys):
     analyzer.print_summary()
     captured = capsys.readouterr()
     assert "LoopSentry Culprit Digest" in captured.out
+
+
+def test_analyzer_culprit_with_relative_roots():
+    analyzer = Analyzer("examples/example_logs", project_roots=["examples"])
+    analyzer.run()
+    for b in analyzer.blocks:
+        key = analyzer._get_culprit_key(b)
+        assert key
+

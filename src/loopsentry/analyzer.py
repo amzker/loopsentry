@@ -441,7 +441,13 @@ class Analyzer:
         stack = block.get("stack") or []
         if not stack:
             return ""
-        roots = self.project_roots
+        roots_list: list[str] = []
+        for r in self.project_roots:
+            try:
+                roots_list.append(str(Path(r).expanduser().resolve()))
+            except OSError:
+                roots_list.append(str(Path(r).expanduser()))
+        roots = tuple(roots_list)
         culprit_idx = -1
         for i, line in enumerate(stack):
             parsed = parse_stack_line(line)
