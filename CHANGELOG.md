@@ -2,7 +2,7 @@
 
 ## v1.2.0 — 2026-05-17
 
-- bunch of updates but mainly improved report UX via adding summary/culprit digest section. and summary export to csv
+- Improved report UX with a new culprit-summary/digest section and added summary export to CSV.
 
 ## v1.1.1 — 2026-03-09
 
