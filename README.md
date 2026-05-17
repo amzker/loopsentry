@@ -26,7 +26,6 @@ OR
 uv add loopsentry
 ```
 
-> **Requires** `psutil` and `rich` (installed automatically as dependencies).
 
 ## Quick Start
 
@@ -116,6 +115,20 @@ loopsentry analyze -d sentry_logs/          # specific directory
 | `/text` | Search/filter events |
 | `q` | Quit |
 
+### Culprit Summary
+
+```bash
+loopsentry analyze -d sentry_logs/ --summary
+```
+
+Prints a high-density summary of unique culprits/offenders. useful when you just want to see blocks and not full timeline. 
+
+Export the unique culprits directly to a CSV file by combining it with the `--csv` flag:
+```bash
+loopsentry analyze -d sentry_logs/ --summary --csv
+loopsentry analyze -d sentry_logs/ --summary --csv -o summary.csv
+```
+
 ### HTML Report
 
 ```bash
@@ -146,6 +159,7 @@ loopsentry analyze [OPTIONS]
   -f, --file FILE        Specific .jsonl file to scan
   --html                 Generate standalone HTML report
   --csv                  Generate CSV report
+  --summary              Print a summary of unique culprit offenders , useful when you just want to see blocks and not full timeline. 
   --sort COLUMN          Sort by: time | duration | cpu | memory | type
   -o, --output PATH      Output file path for HTML/CSV
 ```

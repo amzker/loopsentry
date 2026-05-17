@@ -130,7 +130,7 @@ class LoadTester:
             max_connections=self.concurrency,
             max_keepalive_connections=min(self.concurrency, 100),
         )
-        timeout = httpx.Timeout(30.0, connect=10.0)
+        timeout = httpx.Timeout(60.0, connect=30.0)
 
         async with httpx.AsyncClient(limits=limits, timeout=timeout) as client:
             # Start workers — more than concurrency to keep the pipeline saturated

@@ -4,12 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loopsentry"
-version = "1.1.1"
+version = "1.2.0"
 description = "asyncio Eventloop Blockers Detector/Analyzer."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "amzker", email = "amzker@proton.me" }]
 dependencies = [
+    "orjson>=3.10.0",
     "psutil>=6.0.0",
     "rich>=13.0.0",
 ]
@@ -25,9 +26,9 @@ examples = [
     "requests>=2.31.0",
     "aiosqlite>=0.20.0",
     "httpx>=0.28.1",
-    "orjson>=3.10.0",
 ]
 dev = [
+    "pytest>=8.0.0",
     "requests",
     "aiohttp",
 ]
@@ -47,5 +48,5 @@ loopsentry = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "loopsentry",
+    "loopsentry[dev]",
 ]

@@ -42,7 +42,7 @@ tr:hover{background:var(--sf2)}
 <body>
 <div class="wrap">
   <h1>⚡ LoopSentry Load Test Report</h1>
-  <div class="sub">Generated 2026-03-08T23:40:51.827259 — Target: http://0.0.0.0:8000</div>
+  <div class="sub">Generated 2026-05-10T17:43:08.991251 — Target: http://127.0.0.1:8000</div>
 
   <div class="config">
     <div><dt>Concurrency</dt><dd>100</dd></div>
@@ -52,14 +52,14 @@ tr:hover{background:var(--sf2)}
   </div>
 
   <div class="cards">
-    <div class="card accent"><div class="v">952</div><div class="l">Total Requests</div></div>
-    <div class="card green"><div class="v">952</div><div class="l">Success</div></div>
+    <div class="card accent"><div class="v">906</div><div class="l">Total Requests</div></div>
+    <div class="card green"><div class="v">906</div><div class="l">Success</div></div>
     <div class="card red"><div class="v">0</div><div class="l">Failed</div></div>
-    <div class="card orange"><div class="v">753</div><div class="l">Slow</div></div>
-    <div class="card cyan"><div class="v">7.61</div><div class="l">Req/sec</div></div>
-    <div class="card yellow"><div class="v">12.2776s</div><div class="l">Avg Latency</div></div>
-    <div class="card pink"><div class="v">26.5983s</div><div class="l">P95 Latency</div></div>
-    <div class="card red"><div class="v">28.0245s</div><div class="l">P99 Latency</div></div>
+    <div class="card orange"><div class="v">653</div><div class="l">Slow</div></div>
+    <div class="card cyan"><div class="v">7.24</div><div class="l">Req/sec</div></div>
+    <div class="card yellow"><div class="v">12.2718s</div><div class="l">Avg Latency</div></div>
+    <div class="card pink"><div class="v">29.4804s</div><div class="l">P95 Latency</div></div>
+    <div class="card red"><div class="v">30.2597s</div><div class="l">P99 Latency</div></div>
   </div>
 
   <h2>Per-Endpoint Breakdown</h2>
@@ -69,137 +69,137 @@ tr:hover{background:var(--sf2)}
       <th>Avg</th><th>Min</th><th>Max</th><th>P50</th><th>P95</th><th>P99</th>
     </tr></thead>
     <tbody><tr class="">
-                <td class="mono">GET /healthy</td><td>Healthcheck</td>
-                <td class="num">111</td>
-                <td class="num ok">111</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">78</td>
-                <td class="num">12.4728s</td>
-                <td class="num">0.0417s</td>
-                <td class="num">28.6005s</td>
-                <td class="num">16.8170s</td>
-                <td class="num">26.7407s</td>
-                <td class="num">27.8899s</td>
-            </tr><tr class="">
-                <td class="mono">GET /sleep/0.5</td><td>Blocking Sleep 0.5s</td>
-                <td class="num">100</td>
-                <td class="num ok">100</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">100</td>
-                <td class="num">11.2023s</td>
-                <td class="num">0.5209s</td>
-                <td class="num">28.9785s</td>
-                <td class="num">2.4952s</td>
-                <td class="num">26.8700s</td>
-                <td class="num">28.6047s</td>
-            </tr><tr class="">
-                <td class="mono">POST /hash?password=long</td><td>CPU: PBKDF2 Hash</td>
-                <td class="num">94</td>
-                <td class="num ok">94</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">66</td>
-                <td class="num">13.1833s</td>
-                <td class="num">0.0719s</td>
-                <td class="num">28.1008s</td>
-                <td class="num">18.4676s</td>
-                <td class="num">26.8119s</td>
-                <td class="num">28.0732s</td>
-            </tr><tr class="">
-                <td class="mono">GET /compute</td><td>CPU-bound Loop</td>
-                <td class="num">88</td>
-                <td class="num ok">88</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">65</td>
-                <td class="num">11.1186s</td>
-                <td class="num">0.2197s</td>
-                <td class="num">26.8164s</td>
-                <td class="num">3.5595s</td>
-                <td class="num">25.8124s</td>
-                <td class="num">26.7632s</td>
-            </tr><tr class="">
                 <td class="mono">POST /hash?password=secret123</td><td>CPU: PBKDF2 Hash</td>
-                <td class="num">88</td>
-                <td class="num ok">88</td>
+                <td class="num">93</td>
+                <td class="num ok">93</td>
                 <td class="num ">0</td>
-                <td class="num slow-val">64</td>
-                <td class="num">12.1601s</td>
-                <td class="num">0.0720s</td>
-                <td class="num">28.1318s</td>
-                <td class="num">14.2156s</td>
-                <td class="num">26.2833s</td>
-                <td class="num">28.0522s</td>
-            </tr><tr class="">
-                <td class="mono">GET /users/5</td><td>User Lookup</td>
-                <td class="num">85</td>
-                <td class="num ok">85</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">61</td>
-                <td class="num">13.3003s</td>
-                <td class="num">0.0419s</td>
-                <td class="num">28.4787s</td>
-                <td class="num">18.9413s</td>
-                <td class="num">26.8710s</td>
-                <td class="num">27.6534s</td>
-            </tr><tr class="">
-                <td class="mono">GET /users/sync</td><td>Sync DB Read</td>
-                <td class="num">81</td>
-                <td class="num ok">81</td>
-                <td class="num ">0</td>
-                <td class="num slow-val">54</td>
-                <td class="num">12.5647s</td>
-                <td class="num">0.0419s</td>
-                <td class="num">27.6271s</td>
-                <td class="num">17.2229s</td>
-                <td class="num">26.2075s</td>
-                <td class="num">26.8973s</td>
+                <td class="num slow-val">56</td>
+                <td class="num">11.6774s</td>
+                <td class="num">0.0617s</td>
+                <td class="num">30.0856s</td>
+                <td class="num">3.2766s</td>
+                <td class="num">29.3269s</td>
+                <td class="num">30.0568s</td>
             </tr><tr class="">
                 <td class="mono">GET /mixed</td><td>Mixed Workload</td>
-                <td class="num">80</td>
-                <td class="num ok">80</td>
+                <td class="num">93</td>
+                <td class="num ok">93</td>
                 <td class="num ">0</td>
-                <td class="num slow-val">63</td>
-                <td class="num">12.2163s</td>
-                <td class="num">0.2521s</td>
-                <td class="num">27.7555s</td>
-                <td class="num">9.3839s</td>
-                <td class="num">25.8450s</td>
-                <td class="num">27.0479s</td>
+                <td class="num slow-val">56</td>
+                <td class="num">11.4135s</td>
+                <td class="num">0.2571s</td>
+                <td class="num">30.2630s</td>
+                <td class="num">1.2280s</td>
+                <td class="num">29.4464s</td>
+                <td class="num">30.2024s</td>
             </tr><tr class="">
-                <td class="mono">GET /sleep/1.0</td><td>Blocking Sleep 1.0s</td>
-                <td class="num">77</td>
-                <td class="num ok">77</td>
+                <td class="mono">GET /external/sync</td><td>Sync HTTP (blocks)</td>
+                <td class="num">87</td>
+                <td class="num ok">87</td>
                 <td class="num ">0</td>
-                <td class="num slow-val">77</td>
-                <td class="num">11.5096s</td>
-                <td class="num">1.0419s</td>
-                <td class="num">28.9744s</td>
-                <td class="num">2.0081s</td>
-                <td class="num">26.6009s</td>
-                <td class="num">27.7022s</td>
+                <td class="num slow-val">87</td>
+                <td class="num">13.0586s</td>
+                <td class="num">1.0448s</td>
+                <td class="num">30.2667s</td>
+                <td class="num">6.9135s</td>
+                <td class="num">29.3170s</td>
+                <td class="num">29.8862s</td>
+            </tr><tr class="">
+                <td class="mono">GET /healthy</td><td>Healthcheck</td>
+                <td class="num">86</td>
+                <td class="num ok">86</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">55</td>
+                <td class="num">12.4390s</td>
+                <td class="num">0.0417s</td>
+                <td class="num">31.0511s</td>
+                <td class="num">7.4201s</td>
+                <td class="num">29.2436s</td>
+                <td class="num">30.2293s</td>
+            </tr><tr class="">
+                <td class="mono">GET /compute</td><td>CPU-bound Loop</td>
+                <td class="num">86</td>
+                <td class="num ok">86</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">51</td>
+                <td class="num">9.9844s</td>
+                <td class="num">0.2132s</td>
+                <td class="num">30.0802s</td>
+                <td class="num">1.1790s</td>
+                <td class="num">29.2438s</td>
+                <td class="num">30.0193s</td>
             </tr><tr class="">
                 <td class="mono">GET /users/1</td><td>User Lookup</td>
+                <td class="num">84</td>
+                <td class="num ok">84</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">54</td>
+                <td class="num">13.1879s</td>
+                <td class="num">0.0418s</td>
+                <td class="num">29.7276s</td>
+                <td class="num">15.6189s</td>
+                <td class="num">29.3560s</td>
+                <td class="num">29.6044s</td>
+            </tr><tr class="">
+                <td class="mono">GET /users/sync</td><td>Sync DB Read</td>
+                <td class="num">82</td>
+                <td class="num ok">82</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">57</td>
+                <td class="num">13.4809s</td>
+                <td class="num">0.0418s</td>
+                <td class="num">30.3014s</td>
+                <td class="num">10.6835s</td>
+                <td class="num">29.4547s</td>
+                <td class="num">30.3012s</td>
+            </tr><tr class="">
+                <td class="mono">POST /hash?password=long</td><td>CPU: PBKDF2 Hash</td>
+                <td class="num">78</td>
+                <td class="num ok">78</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">47</td>
+                <td class="num">12.2151s</td>
+                <td class="num">0.0718s</td>
+                <td class="num">30.0799s</td>
+                <td class="num">1.0539s</td>
+                <td class="num">29.5164s</td>
+                <td class="num">29.8601s</td>
+            </tr><tr class="">
+                <td class="mono">GET /sleep/0.5</td><td>Blocking Sleep 0.5s</td>
                 <td class="num">75</td>
                 <td class="num ok">75</td>
                 <td class="num ">0</td>
-                <td class="num slow-val">52</td>
-                <td class="num">13.2056s</td>
-                <td class="num">0.0418s</td>
-                <td class="num">27.7569s</td>
-                <td class="num">20.1220s</td>
-                <td class="num">26.3978s</td>
-                <td class="num">27.5456s</td>
+                <td class="num slow-val">75</td>
+                <td class="num">13.7337s</td>
+                <td class="num">0.5419s</td>
+                <td class="num">30.6670s</td>
+                <td class="num">12.3268s</td>
+                <td class="num">29.7335s</td>
+                <td class="num">30.6028s</td>
             </tr><tr class="">
-                <td class="mono">GET /external/sync</td><td>Sync HTTP (blocks)</td>
-                <td class="num">73</td>
-                <td class="num ok">73</td>
+                <td class="mono">GET /sleep/1.0</td><td>Blocking Sleep 1.0s</td>
+                <td class="num">74</td>
+                <td class="num ok">74</td>
                 <td class="num ">0</td>
-                <td class="num slow-val">73</td>
-                <td class="num">12.2411s</td>
-                <td class="num">1.0457s</td>
-                <td class="num">28.4768s</td>
-                <td class="num">8.1210s</td>
-                <td class="num">26.8465s</td>
-                <td class="num">27.9371s</td>
+                <td class="num slow-val">74</td>
+                <td class="num">13.4918s</td>
+                <td class="num">1.0335s</td>
+                <td class="num">31.2687s</td>
+                <td class="num">3.3740s</td>
+                <td class="num">29.5548s</td>
+                <td class="num">30.5621s</td>
+            </tr><tr class="">
+                <td class="mono">GET /users/5</td><td>User Lookup</td>
+                <td class="num">68</td>
+                <td class="num ok">68</td>
+                <td class="num ">0</td>
+                <td class="num slow-val">41</td>
+                <td class="num">10.4687s</td>
+                <td class="num">0.0419s</td>
+                <td class="num">30.1039s</td>
+                <td class="num">1.0073s</td>
+                <td class="num">29.1205s</td>
+                <td class="num">30.0768s</td>
             </tr></tbody>
   </table>
 

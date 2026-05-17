@@ -47,7 +47,7 @@ class SharedAiosqlitePool:
         self._created = 0
 
     async def _create_conn(self):
-        conn = await aiosqlite.connect(self._db_path)
+        conn = await aiosqlite.connect(self._db_path, timeout=15.0)
         await conn.execute("PRAGMA journal_mode=WAL")
         await conn.execute("PRAGMA synchronous=NORMAL")
         await conn.execute("PRAGMA cache_size=-8000")
@@ -109,6 +109,11 @@ async def init_db():
         await db_pool.release(conn)
 
 
+def _cleanup_db_files() -> None:
+    for suffix in ("", "-wal", "-shm"):
+        Path(f"{DB_PATH}{suffix}").unlink(missing_ok=True)
+
+
 def _hash_sync(password, iterations=200000):
     return hashlib.pbkdf2_hmac("sha256", password.encode(), b"salt", iterations).hex()
 
@@ -135,7 +140,7 @@ async def lifespan(app: FastAPI):
     sentry.stop()
     await http_session.close()
     await db_pool.close()
-    DB_PATH.unlink(missing_ok=True)
+    _cleanup_db_files()
 
 
 app = FastAPI(title="LoopSentry Async Demo", lifespan=lifespan)
